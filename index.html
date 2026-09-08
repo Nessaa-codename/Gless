@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetEdu - Platform Pembelajaran TJKT 3D</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            900: '#1e3a8a',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            surface: '#1e293b',
+                            border: '#334155'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .view-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .view-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            transition: all 0.3s ease;
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        /* AI Chat Animations */
+        @keyframes bounce-ai {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-ai {
+            animation: bounce-ai 1s infinite ease-in-out;
+        }
+
+        /* Flashcard Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .flashcard-inner { transition: transform 0.6s; }
+        .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="text-slate-200 antialiased h-screen flex overflow-hidden selection:bg-brand-500 selection:text-white">
+
+    <aside id="sidebar" class="bg-dark-surface w-64 flex-shrink-0 flex flex-col border-r border-dark-border transition-transform duration-300 absolute md:relative z-50 h-full transform -translate-x-full md:translate-x-0">
+        <div class="h-16 flex items-center px-6 border-b border-dark-border flex-shrink-0 justify-between">
+            <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-500 to-cyan-400">NetEdu TJKT</span>
+            <button id="close-sidebar" class="md:hidden text-slate-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="p-4 flex-1 overflow-y-auto">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Menu Utama</p>
+            <nav class="space-y-2">
+                <button onclick="switchView('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-brand-600 text-white transition-colors" data-target="dashboard">
+                    <i class="fas fa-chart-line w-5"></i>
+                    <span class="font-medium">Dasbor</span>
+                </button>
+                <button onclick="switchView('lab3d')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors" data-target="lab3d">
+                    <i class="fas fa-cubes w-5"></i>
+                    <span class="font-medium">Lab 3D Jaringan</span>
+                </button>
+                <button onclick="switchView('offline')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors" data-target="offline">
+                    <i class="fas fa-mobile-alt w-5"></i>
+                    <span class="font-medium">Akses Luring</span>
+                </button>
+                <button onclick="switchView('kuis')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors" data-target="kuis">
+                    <i class="fas fa-tasks w-5"></i>
+                    <span class="font-medium">Kuis & Latihan</span>
+                </button>
+                <button onclick="switchView('flashcard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors" data-target="flashcard">
+                    <i class="fas fa-clone w-5"></i>
+                    <span class="font-medium">Flashcard Materi</span>
+                </button>
+            </nav>
+
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-8 mb-4">Materi Terkini</p>
+            <nav class="space-y-2 text-sm">
+                <a href="#" onclick="showMateriDetail('subnetting'); return false;" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-400 hover:text-brand-400 transition-colors">
+                    <i class="fas fa-book w-5"></i>
+                    <span>Subnetting IP Address</span>
+                </a>
+                <a href="#" onclick="showMateriDetail('mikrotik'); return false;" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-400 hover:text-brand-400 transition-colors">
+                    <i class="fas fa-server w-5"></i>
+                    <span>Dasar Mikrotik</span>
+                </a>
+            </nav>
+        </div>
+        
+        <div class="p-4 border-t border-dark-border">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center font-bold text-white shadow-lg">
+                    AS
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-white">Ahmad Mahfud</p>
+                    <p class="text-xs text-slate-400">Kelas XI - TKJ3</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col min-w-0 h-full bg-dark-bg relative">
+        
+        <header class="h-16 flex-shrink-0 bg-dark-surface/80 backdrop-blur-md border-b border-dark-border flex items-center justify-between px-4 sm:px-6 z-40 sticky top-0">
+            <div class="flex items-center">
+                <button id="open-sidebar" class="md:hidden mr-4 text-slate-400 hover:text-white">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div class="relative w-64 max-w-md hidden sm:block">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="searchInput" placeholder="Cari materi TJKT..." class="w-full bg-slate-800 text-sm text-white rounded-full pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 border border-slate-700 transition-all">
+                    <!-- Search Results Dropdown -->
+                    <div id="searchResults" class="absolute top-full left-0 w-full mt-2 bg-dark-surface border border-dark-border rounded-lg shadow-xl hidden flex-col overflow-hidden">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button class="relative p-2 text-slate-400 hover:text-white transition-colors" onclick="showToast('Tidak ada notifikasi baru', 'info')">
+                    <i class="far fa-bell text-lg"></i>
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto relative p-4 sm:p-6 scroll-smooth">
+            
+            <div id="view-dashboard" class="view-section active h-full space-y-6">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Selamat Datang, Mahfud!</h1>
+                    <p class="text-slate-400">Pantau perkembangan belajarmu di jurusan Teknik Jaringan Komputer dan Telekomunikasi.</p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <!-- Card 1 -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4 hover:border-brand-500 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-400 font-medium">Materi Selesai</p>
+                            <p id="stat-progress" class="text-2xl font-bold text-white">0%</p>
+                            <div class="w-full bg-slate-700 rounded-full h-1.5 mt-2">
+                                <div id="stat-progress-bar" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Card 2 -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4 hover:border-emerald-500 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                            <i class="far fa-clock"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-400 font-medium">Total Durasi Belajar</p>
+                            <p id="stat-duration" class="text-2xl font-bold text-white">0m 0s</p>
+                        </div>
+                    </div>
+                    <!-- Card 3 -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4 hover:border-purple-500 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-400 font-medium">Rata-rata Kuis</p>
+                            <p id="stat-avg" class="text-2xl font-bold text-white">0</p>
+                        </div>
+                    </div>
+                    <!-- Card 4 -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4 hover:border-amber-500 transition-colors">
+                        <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-400 font-medium">User Online (Live)</p>
+                            <p id="stat-online" class="text-2xl font-bold text-white text-emerald-400 animate-pulse">1</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts & History Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Chart Section -->
+                    <div class="glass-panel p-6 rounded-2xl lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-lg font-bold text-white">Analitik Performa Mingguan</h2>
+                            <select class="bg-slate-800 text-xs text-white border border-slate-700 rounded-md px-2 py-1 outline-none">
+                                <option>Sesi Saat Ini</option>
+                            </select>
+                        </div>
+                        <div class="h-64 w-full relative">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Quiz History -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col h-[350px]">
+                        <h2 class="text-lg font-bold text-white mb-4">Riwayat Kuis Terakhir</h2>
+                        <div id="quiz-history-list" class="overflow-y-auto flex-1 pr-2 space-y-4">
+                            
+                            <!-- State Kosong Awal Sesi -->
+                            <div class="text-center py-10 text-slate-500 flex flex-col items-center">
+                                <i class="fas fa-box-open text-3xl mb-2 opacity-50"></i>
+                                <p class="text-sm">Belum ada kuis yang dikerjakan pada sesi ini.</p>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-lab3d" class="view-section h-full w-full relative rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+                <!-- 3D Canvas -->
+                <div id="canvas-container"></div>
+                
+                <!-- 3D UI Overlay -->
+                <div class="absolute top-4 left-4 z-10 glass-panel p-4 rounded-xl max-w-sm pointer-events-none">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-network-wired text-brand-500"></i> Topologi Jaringan Interaktif
+                    </h2>
+                    <p class="text-sm text-slate-300 mt-1">Gunakan mouse/sentuhan untuk memutar, memperbesar. Klik pada perangkat untuk melihat detail konfigurasi.</p>
+                </div>
+
+                <!-- Info Box (Hidden by default, shown on object click) -->
+                <div id="node-info-card" class="absolute bottom-6 right-6 z-10 glass-panel p-5 rounded-xl w-72 transform translate-y-4 opacity-0 transition-all duration-300 hidden">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded bg-brand-500/20 flex items-center justify-center text-brand-400 text-xl" id="node-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <button onclick="closeNodeInfo()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+                    </div>
+                    <h3 id="node-title" class="text-lg font-bold text-white">Router Utama</h3>
+                    <p id="node-desc" class="text-xs text-slate-400 mt-1">Gateway internet utama jaringan sekolah.</p>
+                    
+                    <div class="mt-4 space-y-2 text-xs">
+                        <div class="flex justify-between border-b border-slate-700 pb-1">
+                            <span class="text-slate-400">IP Address</span>
+                            <span id="node-ip" class="text-white font-mono">192.168.1.1</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-700 pb-1">
+                            <span class="text-slate-400">Status</span>
+                            <span class="text-emerald-400 font-semibold"><i class="fas fa-circle text-[8px] mr-1"></i>Online</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Port Aktif</span>
+                            <span id="node-ports" class="text-white">4 / 5</span>
+                        </div>
+                    </div>
+                    <button class="mt-4 w-full py-2 bg-brand-600 hover:bg-brand-500 text-white rounded text-sm font-medium transition-colors" onclick="openCLI()">Mulai Simulasi CLI</button>
+                    <!-- Tombol Tanya AI di Node 3D -->
+                    <button id="ask-ai-node-btn" class="mt-2 w-full py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2" onclick="askAiAboutNode()">
+                        <i class="fas fa-sparkles"></i> Tanya AI Detailnya
+                    </button>
+                </div>
+                
+                <div class="absolute bottom-4 left-4 z-10 flex gap-2">
+                    <button class="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-lg shadow border border-slate-600 transition" onclick="resetCamera()" title="Reset Kamera">
+                        <i class="fas fa-video"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="view-offline" class="view-section h-full">
+                <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white mb-2"><i class="fas fa-mobile-alt mr-2 text-brand-500"></i>Integrasi Aplikasi Seluler</h1>
+                        <p class="text-slate-400 max-w-2xl text-sm">Unduh materi langsung ke perangkat selulermu (via Companion App) untuk dipelajari kapan saja tanpa koneksi internet. Sangat cocok untuk menghemat kuota.</p>
+                    </div>
+                    <button class="bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center" onclick="showToast('Tautan unduhan aplikasi seluler telah dikirim ke email Anda', 'success')">
+                        <i class="fab fa-android mr-2 text-emerald-500"></i> Unduh App Pendamping
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-700 mb-6">
+                    <button class="px-4 py-2 text-brand-400 border-b-2 border-brand-500 font-medium">Semua Modul</button>
+                    <button class="px-4 py-2 text-slate-400 hover:text-white transition">Video</button>
+                    <button class="px-4 py-2 text-slate-400 hover:text-white transition">PDF</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Item 1: PDF -->
+                    <div class="glass-panel p-4 rounded-xl flex flex-col">
+                        <div class="h-32 bg-slate-800 rounded-lg mb-4 flex items-center justify-center relative group">
+                            <i class="fas fa-file-pdf text-4xl text-red-500/50 group-hover:text-red-500 transition-colors"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="text-[10px] font-bold tracking-wider text-red-400 uppercase bg-red-500/10 px-2 py-0.5 rounded">Dokumen PDF</span>
+                            <h3 class="text-white font-bold mt-2 text-sm leading-tight">Belajar Subnetting IP Address Konsep Dasar dan Perhitungan P.pdf</h3>
+                            <p class="text-xs text-slate-400 mt-2">Materi esensial tentang struktur IP, perhitungan prefix, IP Network, Broadcast dan pembagian Host.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-slate-700 pt-3">
+                            <span class="text-xs text-slate-400"><i class="fas fa-hdd mr-1"></i> 1.8 MB</span>
+                            <button onclick="simulateDownload(this, 'PDF Subnetting Dasar')" class="bg-brand-600/20 text-brand-400 hover:bg-brand-600 hover:text-white px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center">
+                                <i class="fas fa-cloud-download-alt mr-1.5"></i> Simpan Luring
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Item 2: YouTube Video -->
+                    <div class="glass-panel p-4 rounded-xl flex flex-col border border-red-500/30 hover:border-red-500 transition-colors">
+                        <div class="h-32 bg-slate-800 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden group">
+                            <img src="https://img.youtube.com/vi/ARA7V0fk_hA/hqdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity">
+                            <i class="fab fa-youtube text-4xl text-red-600 absolute shadow-lg rounded-full bg-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="text-[10px] font-bold tracking-wider text-red-500 uppercase bg-red-500/10 px-2 py-0.5 rounded">YouTube</span>
+                            <h3 class="text-white font-bold mt-2 text-sm">Merakit PC & Simulasi Jaringan (TJKT)</h3>
+                            <p class="text-xs text-slate-400 mt-1">Video pembelajaran interaktif via YouTube.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-slate-700 pt-3">
+                            <a href="https://youtu.be/ARA7V0fk_hA?si=OjGMyXTJ6gfXH4V9" target="_blank" class="w-full bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center">
+                                <i class="fas fa-play mr-2"></i> Tonton di YouTube
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- View: Kuis -->
+            <div id="view-kuis" class="view-section h-full overflow-y-auto">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-white mb-2"><i class="fas fa-tasks mr-2 text-brand-500"></i>Kuis & Evaluasi</h1>
+                    <p class="text-slate-400 max-w-2xl text-sm">Uji pengetahuanmu dengan kuis interaktif TJKT. Pilih jawaban yang paling tepat.</p>
+                </div>
+                <div class="glass-panel max-w-3xl mx-auto rounded-2xl p-6 md:p-8">
+                    <div id="quiz-setup">
+                        <h2 class="text-xl font-bold text-white mb-4">Mulai Kuis Baru</h2>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-brand-500 cursor-pointer transition" onclick="startQuiz('subnetting', 'Subnetting IPv4 Dasar')">
+                                <h3 class="text-brand-400 font-bold">Subnetting IPv4 Dasar</h3>
+                                <p class="text-xs text-slate-400 mt-1">3 Pertanyaan • 5 Menit</p>
+                            </div>
+                            <div class="p-4 bg-slate-800/50 border border-slate-700 rounded-xl hover:border-brand-500 cursor-pointer transition" onclick="startQuiz('hardware', 'Perangkat Keras Jaringan')">
+                                <h3 class="text-brand-400 font-bold">Perangkat Keras Jaringan</h3>
+                                <p class="text-xs text-slate-400 mt-1">5 Pertanyaan • 10 Menit</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quiz-active" class="hidden">
+                        <div class="flex justify-between text-sm text-slate-400 mb-4">
+                            <span id="quiz-progress">Pertanyaan 1 dari 5</span>
+                            <span id="quiz-score" class="font-bold text-brand-400">Skor: 0</span>
+                        </div>
+                        <h3 id="quiz-question" class="text-lg md:text-xl font-bold text-white mb-6">Pertanyaan dimuat...</h3>
+                        <div id="quiz-options" class="space-y-3">
+                            <!-- Options injected here -->
+                        </div>
+                        <button id="quiz-next-btn" class="mt-6 w-full py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-bold hidden transition" onclick="nextQuestion()">Selanjutnya</button>
+                    </div>
+                    <div id="quiz-result" class="hidden text-center py-8">
+                        <i class="fas fa-trophy text-6xl text-amber-400 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-white mb-2">Kuis Selesai!</h2>
+                        <p class="text-slate-400 mb-6">Skor akhir kamu adalah <span id="final-score" class="text-white font-bold text-xl"></span></p>
+                        <button onclick="resetQuiz()" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-lg transition">Kembali ke Daftar Kuis</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Flashcard -->
+            <div id="view-flashcard" class="view-section h-full overflow-y-auto">
+                <div class="mb-6 flex justify-between items-end">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white mb-2"><i class="fas fa-clone mr-2 text-brand-500"></i>Flashcard Materi</h1>
+                        <p class="text-slate-400 max-w-2xl text-sm">Hafalkan istilah dan konsep penting dalam jaringan komputer.</p>
+                    </div>
+                    <div class="text-slate-400 text-sm font-bold bg-slate-800 px-3 py-1 rounded">
+                        Kartu <span id="fc-current">1</span> / <span id="fc-total">5</span>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center mt-10">
+                    <div class="flashcard perspective-1000 w-full max-w-lg h-64 cursor-pointer" onclick="this.classList.toggle('flipped')">
+                        <div class="flashcard-inner w-full h-full relative transform-style-3d shadow-xl rounded-2xl">
+                            <!-- Front -->
+                            <div class="flashcard-front absolute w-full h-full backface-hidden bg-gradient-to-br from-brand-600 to-brand-800 border border-brand-500 flex items-center justify-center p-8 rounded-2xl">
+                                <h2 id="fc-front-text" class="text-3xl md:text-4xl font-bold text-white text-center">Loading...</h2>
+                                <p class="absolute bottom-4 text-xs text-brand-200"><i class="fas fa-hand-pointer mr-1"></i> Klik untuk membalik</p>
+                            </div>
+                            <!-- Back -->
+                            <div class="flashcard-back absolute w-full h-full backface-hidden rotate-y-180 bg-slate-800 border border-slate-600 flex items-center justify-center p-8 rounded-2xl text-center">
+                                <p id="fc-back-text" class="text-lg md:text-xl text-white">Loading...</p>
+                                <p class="absolute bottom-4 text-xs text-slate-400"><i class="fas fa-hand-pointer mr-1"></i> Klik untuk membalik</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 mt-8">
+                        <button onclick="prevFlashcard()" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center shadow transition"><i class="fas fa-chevron-left"></i></button>
+                        <button onclick="nextFlashcard()" class="w-12 h-12 rounded-full bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center shadow transition"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Materi Detail Pembacaan -->
+            <div id="view-materi-detail" class="view-section h-full overflow-y-auto">
+                <div class="mb-6 flex items-center gap-4">
+                    <button onclick="switchView('dashboard')" class="bg-slate-800 hover:bg-slate-700 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h1 id="materi-title" class="text-2xl font-bold text-white">Judul Materi</h1>
+                        <p class="text-brand-400 text-sm mt-1"><i class="fas fa-book-open mr-2"></i>Modul TJKT</p>
+                    </div>
+                </div>
+                <div class="glass-panel p-6 sm:p-10 rounded-2xl max-w-4xl mx-auto mb-10 border border-slate-700 shadow-2xl">
+                    <div id="materi-content" class="prose prose-invert max-w-none text-slate-300">
+                        <!-- Content injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="toast-container" class="flex flex-col gap-2"></div>
+
+    <!-- CLI Modal Simulation -->
+    <div id="cli-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 w-full max-w-3xl h-[70vh] rounded-xl border border-gray-700 flex flex-col font-mono shadow-2xl overflow-hidden transform transition-all">
+            <!-- Header -->
+            <div class="bg-gray-800 p-3 text-gray-300 text-sm flex justify-between items-center border-b border-gray-700">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-terminal"></i>
+                    <span>Terminal - <span id="cli-hostname" class="font-bold text-white">Router</span></span>
+                </div>
+                <button onclick="closeCLI()" class="text-gray-400 hover:text-red-400 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <!-- Output Area -->
+            <div id="cli-output" class="flex-1 overflow-y-auto p-4 text-green-400 text-sm whitespace-pre-wrap font-mono leading-relaxed bg-black/50"></div>
+            <!-- Input Area -->
+            <div class="flex p-4 border-t border-gray-700 bg-gray-900 items-center">
+                <span class="text-green-400 mr-2 font-bold" id="cli-prompt">Router></span>
+                <input type="text" id="cli-input" class="flex-1 bg-transparent text-white outline-none font-mono" autocomplete="off" onkeypress="handleCLIEnter(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant Floating UI -->
+    <!-- Chat Panel -->
+    <div id="ai-chat-panel" class="fixed bottom-24 right-6 w-80 sm:w-96 h-[500px] max-h-[80vh] bg-dark-surface border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 transform translate-y-8 opacity-0 pointer-events-none z-50">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-brand-600 to-purple-600 p-4 flex justify-between items-center text-white shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-sm"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm">Asisten AI TJKT</h3>
+                    <p class="text-[10px] text-white/70">Didukung oleh Gemini</p>
+                </div>
+            </div>
+            <button onclick="toggleAiChat()" class="hover:text-slate-200 transition"><i class="fas fa-times"></i></button>
+        </div>
+        <!-- Chat History -->
+        <div id="ai-chat-history" class="flex-1 p-4 overflow-y-auto space-y-4 bg-dark-bg text-sm scroll-smooth relative">
+            <div class="ai-msg bg-slate-800 border border-slate-700 text-slate-200 p-3 rounded-xl rounded-tl-none w-[90%] shadow-sm break-words">
+                Halo! 👋 Saya asisten AI jaringan Anda. Ada pertanyaan seputar materi TJKT, subnetting, atau butuh bantuan mengonfigurasi perangkat di Lab 3D?
+            </div>
+        </div>
+        <!-- Input Area -->
+        <div class="p-3 border-t border-slate-700 bg-dark-surface flex gap-2 items-center shrink-0">
+            <input type="text" id="ai-chat-input" placeholder="Tanya tentang jaringan..." class="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-sm transition-all" onkeypress="handleAiChatEnter(event)">
+            <button onclick="sendAiMessage()" class="bg-brand-600 hover:bg-brand-500 text-white w-10 h-10 rounded-lg transition-colors flex items-center justify-center shadow-md">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button id="ai-fab" onclick="toggleAiChat()" class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-tr from-brand-600 to-purple-500 hover:shadow-purple-500/30 text-white rounded-full shadow-lg shadow-brand-500/30 flex items-center justify-center text-2xl transition-transform hover:scale-105 z-40 group">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <script>
+        // --- Sidebar & Navigation Logic ---
+        const sidebar = document.getElementById('sidebar');
+        const openSidebarBtn = document.getElementById('open-sidebar');
+        const closeSidebarBtn = document.getElementById('close-sidebar');
+
+        openSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+        });
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+        });
+
+        function switchView(viewId) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.remove('active');
+            });
+            // Show target view
+            const target = document.getElementById('view-' + viewId);
+            if(target) target.classList.add('active');
+
+            // Update Nav Buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('text-slate-400', 'hover:bg-slate-800');
+                if (btn.getAttribute('data-target') === viewId) {
+                    btn.classList.remove('text-slate-400', 'hover:bg-slate-800');
+                    btn.classList.add('bg-brand-600', 'text-white');
+                }
+            });
+
+            // Update App State View Tracking
+            appState.currentView = viewId;
+
+            // Handle specific view initializations
+            if (viewId === 'lab3d') {
+                init3DEnvironment(); // Will handle resizing/rendering if initialized
+            }
+
+            // Close sidebar on mobile after clicking
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('-translate-x-full');
+            }
+        }
+
+        // --- Toast Notification System ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let icon = 'fa-info-circle';
+            let colorCls = 'border-brand-500 text-brand-400';
+            
+            if (type === 'success') {
+                icon = 'fa-check-circle';
+                colorCls = 'border-emerald-500 text-emerald-400';
+            } else if (type === 'warning') {
+                icon = 'fa-exclamation-triangle';
+                colorCls = 'border-amber-500 text-amber-400';
+            }
+
+            toast.className = `toast bg-dark-surface border-l-4 ${colorCls} p-4 rounded-r shadow-lg flex items-center gap-3 min-w-[250px] mb-2`;
+            toast.innerHTML = `
+                <i class="fas ${icon} text-lg"></i>
+                <p class="text-sm text-white">${message}</p>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function simulateDownload(btnEl, itemName) {
+            const originalHtml = btnEl.innerHTML;
+            btnEl.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Mengunduh...';
+            btnEl.classList.remove('hover:bg-brand-600');
+            btnEl.disabled = true;
+
+            setTimeout(() => {
+                btnEl.innerHTML = '<i class="fas fa-check mr-1.5"></i> Tersimpan';
+                btnEl.classList.remove('text-brand-400', 'bg-brand-600/20');
+                btnEl.classList.add('bg-emerald-600/20', 'text-emerald-400');
+                showToast(`"${itemName}" berhasil diunduh ke aplikasi seluler.`, 'success');
+            }, 2000);
+        }
+
+        // --- Search Functionality ---
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        
+        const dummyMaterials = [
+            { title: 'Subnetting IPv4', type: 'Modul', icon: 'fa-book' },
+            { title: 'Konfigurasi Mikrotik Dasar', type: 'Praktikum', icon: 'fa-cogs' },
+            { title: 'Routing OSPF', type: 'Video', icon: 'fa-play-circle' },
+            { title: 'Pengenalan Fiber Optic', type: 'PDF', icon: 'fa-file-pdf' },
+            { title: 'Troubleshooting Jaringan LAN', type: 'Kuis', icon: 'fa-tasks' }
+        ];
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            searchResults.innerHTML = '';
+            
+            if (query.length === 0) {
+                searchResults.classList.add('hidden');
+                searchResults.classList.remove('flex');
+                return;
+            }
+
+            const filtered = dummyMaterials.filter(item => item.title.toLowerCase().includes(query));
+            
+            if (filtered.length > 0) {
+                filtered.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'px-4 py-3 hover:bg-slate-700 cursor-pointer flex items-center border-b border-dark-border last:border-0 transition-colors';
+                    div.innerHTML = `
+                        <i class="fas ${item.icon} text-brand-400 mr-3 w-4 text-center"></i>
+                        <div>
+                            <p class="text-sm text-white">${item.title}</p>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wide">${item.type}</p>
+                        </div>
+                    `;
+                    div.onclick = () => {
+                        searchInput.value = '';
+                        searchResults.classList.add('hidden');
+                        showToast(`Membuka: ${item.title}`);
+                    };
+                    searchResults.appendChild(div);
+                });
+            } else {
+                searchResults.innerHTML = '<div class="px-4 py-3 text-sm text-slate-400 italic">Materi tidak ditemukan</div>';
+            }
+            
+            searchResults.classList.remove('hidden');
+            searchResults.classList.add('flex');
+        });
+
+        // Hide search results on click outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.add('hidden');
+                searchResults.classList.remove('flex');
+            }
+        });
+
+        // App State for Real-time Dashboard
+        const appState = {
+            studySeconds: 0,
+            quizScores: [],
+            readMaterials: new Set(),
+            totalMaterials: 2, // Subnetting & Mikrotik
+            currentView: 'dashboard'
+        };
+
+        // Real-time Timer
+        setInterval(() => {
+            // Hanya menghitung durasi saat siswa membuka halaman materi-detail
+            if (appState.currentView === 'materi-detail') {
+                appState.studySeconds++;
+                
+                const durationEl = document.getElementById('stat-duration');
+                if(durationEl) {
+                    const m = Math.floor(appState.studySeconds / 60);
+                    const s = appState.studySeconds % 60;
+                    durationEl.textContent = `${m}m ${s}s`;
+                }
+            }
+        }, 1000);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            // Gradient fill
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // Brand-500 with opacity
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+            window.performanceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mulai', 'Kuis 1', 'Kuis 2', 'Kuis 3', 'Kuis 4', 'Kuis 5'],
+                    datasets: [{
+                        label: 'Skor Kuis Sesi Ini',
+                        data: [0, null, null, null, null, null], // Starts at 0
+                        borderColor: '#3b82f6', // brand-500
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#10b981', // emerald
+                        pointBorderColor: '#ffffff',
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: '#10b981',
+                        fill: true,
+                        tension: 0.4,
+                        spanGaps: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 500 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(51, 65, 85, 0.5)', drawBorder: false },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        });
+
+        let scene, camera, renderer, controls, raycaster, mouse;
+        let networkNodes = [];
+        let is3DInitialized = false;
+        const defaultCameraPos = { x: 0, y: 15, z: 20 };
+
+        function init3DEnvironment() {
+            if (is3DInitialized) {
+                // Just resize if already initialized
+                resize3DCanvas();
+                return;
+            }
+
+            const container = document.getElementById('canvas-container');
+            
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color('#f8fafc'); // Latar belakang terang yang elegan (Slate 50)
+            
+            // Grid & Fog for depth
+            const gridHelper = new THREE.GridHelper(40, 40, '#cbd5e1', '#e2e8f0'); // Grid warna abu-abu terang
+            scene.add(gridHelper);
+            scene.fog = new THREE.FogExp2('#f8fafc', 0.02); // Kabut disesuaikan dengan latar belakang terang
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(defaultCameraPos.x, defaultCameraPos.y, defaultCameraPos.z);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.1; // Don't go below ground
+            controls.minDistance = 5;
+            controls.maxDistance = 40;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            // Raycaster for interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Build Network Topology
+            buildNetworkTopology();
+
+            // Events
+            window.addEventListener('resize', resize3DCanvas);
+            renderer.domElement.addEventListener('click', onNodeClick);
+            
+            // Animation Loop
+            animate3D();
+            is3DInitialized = true;
+        }
+
+        function createNode(type, position, color, data) {
+            let geometry;
+            if (type === 'router') geometry = new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32);
+            else if (type === 'switch') geometry = new THREE.BoxGeometry(3, 0.5, 2);
+            else if (type === 'server') geometry = new THREE.BoxGeometry(1.5, 4, 2);
+            else if (type === 'pc') geometry = new THREE.BoxGeometry(1, 1, 1);
+            else geometry = new THREE.SphereGeometry(1, 16, 16);
+
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            
+            // Add floating animation offset
+            mesh.userData = { 
+                ...data,
+                type: type,
+                originalY: position.y,
+                animOffset: Math.random() * Math.PI * 2 
+            };
+            
+            // Add outline edge helper for style
+            const edges = new THREE.EdgesGeometry(geometry);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 }));
+            mesh.add(line);
+
+            scene.add(mesh);
+            networkNodes.push(mesh);
+            return mesh;
+        }
+
+        function createConnection(nodeA, nodeB) {
+            const material = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.7 }); // Warna Slate 500 untuk kabel agar kontras di latar terang
+            
+            // Create a curved line (spline) for cables
+            const p1 = nodeA.position;
+            const p2 = nodeB.position;
+            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            mid.y -= 2; // Let cable dip slightly
+
+            const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+            const points = curve.getPoints(20);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            const curveObject = new THREE.Line(geometry, material);
+            scene.add(curveObject);
+        }
+
+        function buildNetworkTopology() {
+            // Colors (Skema warna kontras untuk latar belakang terang)
+            const cRouter = 0xff4757; // Vibrant Red (Router)
+            const cSwitch = 0x2ed573; // Vibrant Green (Switch)
+            const cServer = 0x1e90ff; // Dodger Blue (Server)
+            const cPC = 0x747d8c;     // Slate Gray (PC)
+
+            // Core Router (Center)
+            const router = createNode('router', new THREE.Vector3(0, 1, -5), cRouter, {
+                title: 'Router Core (Mikrotik)',
+                desc: 'Gerbang utama menghubungkan intranet sekolah ke ISP.',
+                ip: '192.168.0.1 / 10.0.0.1',
+                ports: '4 Aktif / 5 Total',
+                icon: 'fa-project-diagram'
+            });
+
+            // Switch 1 (Lab)
+            const sw1 = createNode('switch', new THREE.Vector3(-6, 0.5, 2), cSwitch, {
+                title: 'Switch Manageable - Lab 1',
+                desc: 'Mendistribusikan koneksi ke PC Siswa Lab TJKT.',
+                ip: '192.168.1.2 (VLAN 10)',
+                ports: '22 Aktif / 24 Total',
+                icon: 'fa-network-wired'
+            });
+
+            // Switch 2 (Server Room)
+            const sw2 = createNode('switch', new THREE.Vector3(6, 0.5, 2), cSwitch, {
+                title: 'Switch Core - Ruang Server',
+                desc: 'Distribusi koneksi kecepatan tinggi untuk server lokal.',
+                ip: '192.168.2.2 (VLAN 20)',
+                ports: '4 Aktif / 8 Total',
+                icon: 'fa-network-wired'
+            });
+
+            // Server
+            const server = createNode('server', new THREE.Vector3(8, 2, 6), cServer, {
+                title: 'Web Server Lokal',
+                desc: 'Menjalankan layanan e-learning dan database sekolah.',
+                ip: '192.168.2.10',
+                ports: 'HTTP (80), HTTPS (443)',
+                icon: 'fa-server'
+            });
+
+            // PCs in Lab
+            const pc1 = createNode('pc', new THREE.Vector3(-9, 0.5, 6), cPC, {
+                title: 'PC Client 01', desc: 'Workstation siswa.', ip: '192.168.1.101', ports: 'DHCP', icon: 'fa-desktop'
+            });
+            const pc2 = createNode('pc', new THREE.Vector3(-6, 0.5, 6), cPC, {
+                title: 'PC Client 02', desc: 'Workstation siswa.', ip: '192.168.1.102', ports: 'DHCP', icon: 'fa-desktop'
+            });
+            const pc3 = createNode('pc', new THREE.Vector3(-3, 0.5, 6), cPC, {
+                title: 'PC Client 03', desc: 'Workstation siswa.', ip: '192.168.1.103', ports: 'DHCP', icon: 'fa-desktop'
+            });
+
+            // Wiring
+            createConnection(router, sw1);
+            createConnection(router, sw2);
+            createConnection(sw2, server);
+            createConnection(sw1, pc1);
+            createConnection(sw1, pc2);
+            createConnection(sw1, pc3);
+        }
+
+        function onNodeClick(event) {
+            const container = document.getElementById('canvas-container');
+            const rect = container.getBoundingClientRect();
+            
+            mouse.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(networkNodes);
+
+            const infoCard = document.getElementById('node-info-card');
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                const data = object.userData;
+
+                // Highlight effect (scale up slightly)
+                networkNodes.forEach(node => node.scale.set(1,1,1)); // reset others
+                object.scale.set(1.2, 1.2, 1.2);
+
+                // Populate UI
+                document.getElementById('node-title').textContent = data.title;
+                document.getElementById('node-desc').textContent = data.desc;
+                document.getElementById('node-ip').textContent = data.ip;
+                document.getElementById('node-ports').textContent = data.ports;
+                
+                const iconEl = document.getElementById('node-icon');
+                iconEl.innerHTML = `<i class="fas ${data.icon}"></i>`;
+                
+                // Color formatting based on type
+                iconEl.className = 'w-10 h-10 rounded flex items-center justify-center text-xl ' + 
+                    (data.type === 'router' ? 'bg-amber-500/20 text-amber-400' :
+                     data.type === 'switch' ? 'bg-emerald-500/20 text-emerald-400' :
+                     data.type === 'server' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400');
+
+                // Show Card
+                infoCard.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    infoCard.classList.remove('translate-y-4', 'opacity-0');
+                }, 10);
+            } else {
+                closeNodeInfo();
+                networkNodes.forEach(node => node.scale.set(1,1,1));
+            }
+        }
+
+        function closeNodeInfo() {
+            const infoCard = document.getElementById('node-info-card');
+            infoCard.classList.add('translate-y-4', 'opacity-0');
+            setTimeout(() => {
+                infoCard.classList.add('hidden');
+            }, 300);
+            networkNodes.forEach(node => node.scale.set(1,1,1));
+        }
+
+        function resetCamera() {
+            if(camera && controls) {
+                camera.position.set(defaultCameraPos.x, defaultCameraPos.y, defaultCameraPos.z);
+                controls.target.set(0,0,0);
+                controls.update();
+                closeNodeInfo();
+            }
+        }
+
+        function resize3DCanvas() {
+            if (!is3DInitialized) return;
+            const container = document.getElementById('canvas-container');
+            if(container.clientWidth === 0) return; // Prevent 0 size when hidden
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            controls.update();
+
+            // Subtle floating animation for nodes
+            const time = Date.now() * 0.001;
+            networkNodes.forEach(node => {
+                if (node.userData.type !== 'switch') { // switches stay on ground
+                    node.position.y = node.userData.originalY + Math.sin(time * 2 + node.userData.animOffset) * 0.1;
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // Fix canvas size when view becomes visible
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.target.id === 'view-lab3d' && mutation.target.classList.contains('active')) {
+                    if(is3DInitialized) setTimeout(resize3DCanvas, 50);
+                }
+            });
+        });
+        observer.observe(document.getElementById('view-lab3d'), { attributes: true, attributeFilter: ['class'] });
+
+        // Auto initialize dashboard on load
+        window.onload = () => {
+            switchView('dashboard');
+        }
+
+        // --- Database & Logic Halaman Materi Terkini ---
+        const materiDatabase = {
+            'subnetting': {
+                title: 'Belajar Subnetting IP Address: Konsep Dasar dan Perhitungan',
+                content: `
+                    <div class="space-y-6 text-sm leading-relaxed">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2 border-b border-slate-700 pb-2">Brief Overview</h2>
+                            <p>Video ini membahas konsep dasar subnetting IP address, khususnya pada IP kelas C, dan cara menghitung IP Network, IP Broadcast, IP Host, serta Subnet Mask. Materi ini penting untuk memahami bagaimana jaringan dibagi dan diatur, serta relevan untuk kurikulum MTCNNA dan ujian sejenis.</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-bold text-brand-400 mb-3">Key Points</h3>
+                            <ol class="list-decimal pl-5 space-y-2 text-slate-300 bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+                                <li>IP Address dibentuk dari <span class="text-white font-bold">32 bit</span> bilangan biner, dibagi menjadi 4 bagian, masing-masing 8 bit.</li>
+                                <li>Bilangan biner hanya terdiri dari angka 0 dan 1, yang merupakan dasar pemrograman komputer.</li>
+                                <li>Subnetting pada IP kelas C sering muncul dalam penggunaan private network.</li>
+                                <li>Perhitungan subnetting memerlukan pemahaman tentang prefix dan jumlah IP yang dihasilkan.</li>
+                                <li>IP Network adalah IP awal, IP Broadcast adalah IP akhir, dan IP Host adalah rentang IP yang bisa digunakan.</li>
+                            </ol>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2 border-b border-slate-700 pb-2 mt-6">Konsep Dasar IP Address dan Bilangan Biner</h2>
+                            <p class="mb-3">IP Address dibentuk dari sekumpulan bilangan biner 32 bit. Bilangan biner ini dibagi menjadi 4 bagian, di mana setiap bagian memiliki panjang 8 bit. Bagian-bagian ini dipisahkan oleh titik, seperti <code class="bg-slate-800 text-brand-300 px-2 py-1 rounded">XXXXXXXX.XXXXXXXX.XXXXXXXX.XXXXXXXX</code>.</p>
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li><strong>Bilangan Biner:</strong> Sistem dasar komputer, hanya terdiri dari dua angka: 1 (benar/hidup) dan 0 (salah/mati).</li>
+                                <li><strong>Komunikasi Mesin:</strong> Perangkat keras (router, switch) hanya memproses sinyal elektronik dalam bentuk bilangan biner.</li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-3 border-b border-slate-700 pb-2 mt-6">Tabel IP Private Kelas C dan Prefix</h2>
+                            <div class="overflow-x-auto rounded-xl border border-slate-700 mb-4">
+                                <table class="w-full text-left border-collapse min-w-[500px]">
+                                    <thead>
+                                        <tr class="bg-slate-800 text-white">
+                                            <th class="p-3 border-b border-slate-700 font-semibold">Subnet Mask</th>
+                                            <th class="p-3 border-b border-slate-700 font-semibold">Notasi (Prefix)</th>
+                                            <th class="p-3 border-b border-slate-700 font-semibold">Jumlah Host (IP)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-700/50">
+                                        <tr class="hover:bg-slate-800/30 transition-colors"><td class="p-3">255.255.255.0</td><td class="p-3 font-mono text-brand-400">/24</td><td class="p-3">256</td></tr>
+                                        <tr class="hover:bg-slate-800/30 transition-colors bg-slate-800/20"><td class="p-3">255.255.255.128</td><td class="p-3 font-mono text-brand-400">/25</td><td class="p-3">128</td></tr>
+                                        <tr class="hover:bg-slate-800/30 transition-colors"><td class="p-3">255.255.255.192</td><td class="p-3 font-mono text-brand-400">/26</td><td class="p-3">64</td></tr>
+                                        <tr class="hover:bg-slate-800/30 transition-colors bg-slate-800/20"><td class="p-3">255.255.255.224</td><td class="p-3 font-mono text-brand-400">/27</td><td class="p-3">32</td></tr>
+                                        <tr class="hover:bg-slate-800/30 transition-colors"><td class="p-3 border-l-4 border-l-amber-500">255.255.255.240</td><td class="p-3 font-mono text-brand-400">/28</td><td class="p-3">16 (Titik Tengah)</td></tr>
+                                        <tr class="hover:bg-slate-800/30 transition-colors bg-slate-800/20"><td class="p-3">255.255.255.248</td><td class="p-3 font-mono text-brand-400">/29</td><td class="p-3">8</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-brand-900/20 border border-brand-500/30 rounded-xl p-5 mt-8">
+                            <h2 class="text-lg font-bold text-white mb-3"><i class="fas fa-calculator text-brand-400 mr-2"></i>Contoh Soal: Menentukan IP Network</h2>
+                            <p class="font-medium text-white mb-3">Soal: Dari IP <code class="text-amber-400 bg-slate-800 px-1 rounded">192.168.1.240/25</code>, yang manakah Network-nya?</p>
+                            <ol class="list-decimal pl-5 space-y-2 text-slate-300">
+                                <li>Identifikasi Deret Terakhir: <span class="text-white font-mono">240</span></li>
+                                <li>Prefix <span class="text-white font-mono">/25</span> memiliki <span class="text-white font-bold">128</span> jumlah IP.</li>
+                                <li>Hitung pembagian: <span class="font-mono bg-slate-800 px-1 rounded">240 : 128 = 1.xxx</span> (Ambil angka depan koma yaitu <strong>1</strong>)</li>
+                                <li>Kalikan dengan jumlah IP: <span class="font-mono bg-slate-800 px-1 rounded">1 x 128 = 128</span></li>
+                                <li>Hasil IP Network: <strong class="text-emerald-400 text-lg">192.168.1.128</strong></li>
+                            </ol>
+                        </div>
+                    </div>
+                `
+            },
+            'mikrotik': {
+                title: 'Konfigurasi Mikrotik Dasar (Routing & NAT)',
+                content: `
+                    <div class="space-y-4 text-slate-300">
+                        <h2 class="text-xl font-bold text-white border-b border-slate-700 pb-2">Pendahuluan Mikrotik</h2>
+                        <p>MikroTik RouterOS adalah sistem operasi berbasis Linux yang diperuntukkan sebagai network router. Modul ini sedang dalam tahap penyempurnaan.</p>
+                        <div class="p-4 bg-slate-800 rounded-lg mt-4 text-center">
+                            <i class="fas fa-tools text-3xl text-amber-500 mb-2"></i>
+                            <p>Materi sedang diperbarui oleh Instruktur.</p>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        function showMateriDetail(materiId) {
+            const materi = materiDatabase[materiId];
+            if(materi) {
+                document.getElementById('materi-title').textContent = materi.title;
+                document.getElementById('materi-content').innerHTML = materi.content;
+                
+                // Real-time stat update: Record material as read
+                appState.readMaterials.add(materiId);
+                const pct = Math.round((appState.readMaterials.size / appState.totalMaterials) * 100);
+                document.getElementById('stat-progress').textContent = `${pct}%`;
+                document.getElementById('stat-progress-bar').style.width = `${pct}%`;
+                
+                switchView('materi-detail');
+            }
+        }
+
+        // --- Gemini AI Integration ---
+        const part1 = "AQ.Ab8RN6Jm39_X8M";
+const part2 = "vQBjiIP_uaPt3Gux";
+const part3 = "vxSQnGsSwtqvoHCmJnPw";
+const geminiApiKey = part1 + part2 + part3;
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`;
+
+        function toggleAiChat() {
+            const panel = document.getElementById('ai-chat-panel');
+            const fab = document.getElementById('ai-fab');
+            const isOpen = panel.classList.contains('pointer-events-auto');
+            
+            if (isOpen) {
+                panel.classList.remove('pointer-events-auto', 'translate-y-0', 'opacity-100');
+                panel.classList.add('pointer-events-none', 'translate-y-8', 'opacity-0');
+                fab.classList.remove('scale-0');
+            } else {
+                panel.classList.remove('pointer-events-none', 'translate-y-8', 'opacity-0');
+                panel.classList.add('pointer-events-auto', 'translate-y-0', 'opacity-100');
+                fab.classList.add('scale-0');
+                document.getElementById('ai-chat-input').focus();
+            }
+        }
+
+        function handleAiChatEnter(e) {
+            if (e.key === 'Enter') sendAiMessage();
+        }
+
+        async function sendAiMessage(predefinedMsg = null) {
+            const inputEl = document.getElementById('ai-chat-input');
+            const message = predefinedMsg || inputEl.value.trim();
+            if (!message) return;
+            
+            if (!predefinedMsg) inputEl.value = '';
+
+            appendAiMessage(message, 'user');
+            
+            // show loading
+            const loadingId = appendAiLoading();
+
+            try {
+                // System Instruction to set persona - Dibuat JAUH lebih ketat dan akurat
+                const systemPrompt = "Anda adalah instruktur/ahli senior Teknik Jaringan Komputer dan Telekomunikasi (TJKT) yang sangat cerdas, presisi, dan akurat. Tugas Anda: 1. Jawab pertanyaan siswa dengan bahasa Indonesia yang jelas, profesional, dan mudah dipahami. 2. Berikan penjelasan teknis yang valid, langkah konfigurasi (jika diminta), serta analogi nyata untuk konsep rumit. 3. Fokus hanya pada topik IT: infrastruktur jaringan, routing, Mikrotik, Cisco, subnetting, hardware, dan keamanan jaringan. 4. Tolak dengan halus pertanyaan di luar konteks jaringan/IT. 5. Gunakan format Markdown (bold, bullet points, code block) agar rapi dan mudah dibaca.";
+                
+                const payload = {
+                    contents: [{ parts: [{ text: message }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+
+                const response = await fetch(geminiApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+removeAiLoading(loadingId);
+
+// Menampilkan respon asli dari Google ke Console browser
+console.log("Respon API Google:", result);
+
+if (result.candidates && result.candidates[0] && result.candidates[0].content) {
+    const aiText = result.candidates[0].content.parts[0].text;
+    appendAiMessage(aiText, 'ai');
+} else if (result.error) {
+    // Jika Google menolak, tampilkan alasan penolakannya di layar chat
+    appendAiMessage("Error API: " + result.error.message, 'error');
+} else {
+    appendAiMessage("Maaf, terjadi kesalahan saat memproses tanggapan.", 'error');
+}
+            } catch (err) {
+                removeAiLoading(loadingId);
+                appendAiMessage("Maaf, gagal terhubung ke server AI. Coba lagi nanti.", 'error');
+                console.error("Gemini API Error:", err);
+            }
+        }
+
+        function appendAiMessage(text, sender) {
+            const history = document.getElementById('ai-chat-history');
+            const div = document.createElement('div');
+            
+            if (sender === 'user') {
+                div.className = 'user-msg bg-brand-600 text-white p-3 rounded-xl rounded-tr-none w-[85%] ml-auto text-right shadow-sm break-words';
+            } else if (sender === 'ai') {
+                div.className = 'ai-msg bg-slate-800 border border-slate-700 text-slate-200 p-3 rounded-xl rounded-tl-none w-[95%] shadow-sm leading-relaxed break-words';
+                text = formatAiMarkdown(text);
+            } else {
+                div.className = 'ai-msg bg-red-900/40 border border-red-500/50 text-red-200 p-3 rounded-xl rounded-tl-none w-[85%] text-xs break-words';
+            }
+            
+            div.innerHTML = text;
+            history.appendChild(div);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function appendAiLoading() {
+            const history = document.getElementById('ai-chat-history');
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'ai-msg bg-slate-800 border border-slate-700 p-3 rounded-xl rounded-tl-none w-20 flex gap-1.5 items-center justify-center shadow-sm h-10';
+            div.innerHTML = `
+                <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce-ai"></div>
+                <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce-ai" style="animation-delay: 0.15s"></div>
+                <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce-ai" style="animation-delay: 0.3s"></div>
+            `;
+            history.appendChild(div);
+            history.scrollTop = history.scrollHeight;
+            return id;
+        }
+
+        function removeAiLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        // Basic Regex Markdown parser for chat display
+        function formatAiMarkdown(text) {
+            // Bold
+            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+            // Italic
+            formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // Inline Code
+            formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-slate-900/80 text-brand-300 px-1.5 py-0.5 rounded font-mono text-xs whitespace-pre-wrap">$1</code>');
+            // Line breaks
+            formatted = formatted.replace(/\n/g, '<br>');
+            return formatted;
+        }
+
+        // Function called from 3D Node UI
+        function askAiAboutNode() {
+            const title = document.getElementById('node-title').textContent;
+            closeNodeInfo(); // close the 3d popup info
+            
+            // Open chat panel if closed
+            const panel = document.getElementById('ai-chat-panel');
+            if (!panel.classList.contains('pointer-events-auto')) {
+                toggleAiChat();
+            }
+            
+            const prompt = `Halo, tolong jelaskan secara singkat tentang perangkat **${title}** dalam jaringan komputer. Apa fungsi utamanya dan berikan satu contoh konfigurasi dasar yang biasa dilakukan!`;
+            sendAiMessage(prompt);
+        }
+
+        let cliHistory = [];
+        
+        function openCLI() {
+            const title = document.getElementById('node-title').textContent || 'Perangkat';
+            closeNodeInfo(); // close node info UI
+            
+            const hostname = title.split(' ')[0].replace(/[^a-zA-Z0-9]/g, ''); // Get first word alphanumeric
+            document.getElementById('cli-hostname').textContent = title;
+            document.getElementById('cli-prompt').textContent = hostname + '>';
+            
+            const output = document.getElementById('cli-output');
+            output.innerHTML = `Welcome to Virtual TJKT CLI\nHostname: ${title}\nType "help" or "?" to list available commands.\n\n`;
+            
+            const modal = document.getElementById('cli-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('cli-input').focus(), 100);
+        }
+
+        function closeCLI() {
+            document.getElementById('cli-modal').classList.add('hidden');
+            document.getElementById('cli-input').value = '';
+        }
+
+        function handleCLIEnter(e) {
+            if (e.key === 'Enter') {
+                const inputEl = document.getElementById('cli-input');
+                const cmd = inputEl.value.trim();
+                const outputEl = document.getElementById('cli-output');
+                const prompt = document.getElementById('cli-prompt').textContent;
+                
+                // Append command to output
+                outputEl.innerHTML += `<div><span class="text-green-400 font-bold">${prompt}</span> <span class="text-white">${cmd}</span></div>`;
+                
+                // Process Command
+                processCommand(cmd, outputEl, document.getElementById('cli-prompt'));
+                
+                inputEl.value = '';
+                // Auto scroll to bottom
+                outputEl.scrollTop = outputEl.scrollHeight;
+            }
+        }
+
+        function processCommand(cmd, outputEl, promptEl) {
+            const args = cmd.toLowerCase().split(' ');
+            const mainCmd = args[0];
+            
+            let response = '';
+            
+            if (!mainCmd) return; // empty command
+
+            switch (mainCmd) {
+                case 'help':
+                case '?':
+                    response = `Available commands:\n  help, ?      : Show this help message\n  ping <ip>    : Send ICMP ECHO_REQUEST to network hosts\n  ip address   : Show IP address configuration\n  enable       : Turn on privileged mode\n  clear        : Clear the terminal screen\n  exit         : Close terminal`;
+                    break;
+                case 'enable':
+                    promptEl.textContent = promptEl.textContent.replace('>', '#');
+                    break;
+                case 'ip':
+                    if (args[1] === 'address') {
+                        response = `Interface Ethernet0/0\n  IP address: 192.168.1.1/24\n  Status: UP\nInterface Wlan1\n  IP address: 10.0.0.1/8\n  Status: DOWN`;
+                    } else {
+                        response = `Incomplete command. Try 'ip address'`;
+                    }
+                    break;
+                case 'ping':
+                    if (args[1]) {
+                        response = `Pinging ${args[1]} with 32 bytes of data:\nReply from ${args[1]}: bytes=32 time=2ms TTL=64\nReply from ${args[1]}: bytes=32 time=3ms TTL=64\nReply from ${args[1]}: bytes=32 time=2ms TTL=64\nReply from ${args[1]}: bytes=32 time=4ms TTL=64\n\nPing statistics for ${args[1]}:\n  Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)`;
+                    } else {
+                        response = `Usage: ping <ip_address>`;
+                    }
+                    break;
+                case 'clear':
+                    outputEl.innerHTML = '';
+                    return; // skip adding response div
+                case 'exit':
+                    closeCLI();
+                    return;
+                default:
+                    response = `% Unknown command or computer name, or unable to find computer address`;
+            }
+            
+            if (response) {
+                outputEl.innerHTML += `<div class="text-gray-300 pb-2">${response}</div>`;
+            }
+        }
+
+        const quizzes = {
+            hardware: [
+                { q: "Perangkat yang berfungsi untuk menghubungkan beberapa jaringan komputer yang berbeda adalah...", options: ["Switch", "Hub", "Router", "Access Point"], answer: 2 },
+                { q: "Media transmisi jaringan yang menggunakan cahaya untuk mengirimkan data adalah...", options: ["Kabel UTP", "Kabel Coaxial", "Fiber Optic", "Bluetooth"], answer: 2 },
+                { q: "Mana dari berikut ini yang merupakan alamat fisik (hardware address) sebuah antarmuka jaringan?", options: ["IP Address", "MAC Address", "Subnet Mask", "Gateway"], answer: 1 },
+                { q: "Protokol yang secara otomatis memberikan IP Address kepada komputer client adalah...", options: ["DNS", "FTP", "DHCP", "HTTP"], answer: 2 },
+                { q: "Perangkat yang bekerja pada Layer 2 OSI Model dan berfungsi menghubungkan perangkat dalam satu LAN adalah...", options: ["Switch", "Router", "Repeater", "Modem"], answer: 0 }
+            ],
+            subnetting: [
+                { q: "Subnet mask default untuk IP kelas C adalah...", options: ["255.0.0.0", "255.255.0.0", "255.255.255.0", "255.255.255.255"], answer: 2 },
+                { q: "Berapa jumlah host yang dapat digunakan pada prefix /24?", options: ["256", "254", "128", "126"], answer: 1 },
+                { q: "Alamat IP 192.168.10.255 /24 merupakan alamat...", options: ["Network", "Broadcast", "Host valid", "Multicast"], answer: 1 }
+            ]
+        };
+
+        let currentQuizData = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let selectedOption = null;
+        let activeQuizTitle = '';
+
+        function startQuiz(type, title = 'Kuis') {
+            currentQuizData = quizzes[type];
+            currentQuestionIndex = 0;
+            score = 0;
+            activeQuizTitle = title;
+            
+            document.getElementById('quiz-setup').classList.add('hidden');
+            document.getElementById('quiz-result').classList.add('hidden');
+            document.getElementById('quiz-active').classList.remove('hidden');
+            
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            selectedOption = null;
+            document.getElementById('quiz-next-btn').classList.add('hidden');
+            
+            const qData = currentQuizData[currentQuestionIndex];
+            document.getElementById('quiz-progress').textContent = `Pertanyaan ${currentQuestionIndex + 1} dari ${currentQuizData.length}`;
+            document.getElementById('quiz-score').textContent = `Skor: ${score}`;
+            document.getElementById('quiz-question').textContent = qData.q;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-4 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-700 text-white transition quiz-opt-btn';
+                btn.textContent = opt;
+                btn.onclick = () => selectOption(idx, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectOption(idx, btnEl) {
+            // Remove selection from all
+            document.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+                btn.classList.remove('border-brand-500', 'bg-brand-900/30', 'border-2');
+                btn.classList.add('border-slate-700', 'bg-slate-800/50');
+            });
+            
+            // Add selection to clicked
+            btnEl.classList.remove('border-slate-700', 'bg-slate-800/50');
+            btnEl.classList.add('border-brand-500', 'bg-brand-900/30', 'border-2');
+            
+            selectedOption = idx;
+            document.getElementById('quiz-next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            if (selectedOption === null) return;
+            
+            const qData = currentQuizData[currentQuestionIndex];
+            if (selectedOption === qData.answer) {
+                score += Math.round(100 / currentQuizData.length);
+            }
+            
+            currentQuestionIndex++;
+            
+            if (currentQuestionIndex < currentQuizData.length) {
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-active').classList.add('hidden');
+            document.getElementById('quiz-result').classList.remove('hidden');
+            document.getElementById('final-score').textContent = score;
+
+            // Update Real-time App State
+            appState.quizScores.push(score);
+            
+            // Update Rata-rata Skor UI
+            const sum = appState.quizScores.reduce((a, b) => a + b, 0);
+            const avg = (sum / appState.quizScores.length).toFixed(1);
+            document.getElementById('stat-avg').textContent = avg;
+
+            // Update Riwayat List UI
+            const list = document.getElementById('quiz-history-list');
+            if(appState.quizScores.length === 1) {
+                list.innerHTML = ''; // Hapus teks "Belum ada riwayat"
+            }
+            
+            // Generate Warna berdasarkan skor
+            let colorCls = score >= 80 ? 'emerald' : score >= 60 ? 'blue' : 'amber';
+            
+            const historyItem = document.createElement('div');
+            historyItem.className = 'p-3 bg-slate-800/50 rounded-lg border border-slate-700 flex justify-between items-center mb-3 animate-[fadeIn_0.3s_ease-out]';
+            historyItem.innerHTML = `
+                <div>
+                    <p class="font-medium text-sm text-white">${activeQuizTitle}</p>
+                    <p class="text-xs text-slate-400">Baru saja</p>
+                </div>
+                <span class="px-2 py-1 bg-${colorCls}-500/20 text-${colorCls}-400 text-xs font-bold rounded">${score}/100</span>
+            `;
+            list.prepend(historyItem);
+
+            // Update Chart UI
+            if (window.performanceChartInstance) {
+                const chartData = window.performanceChartInstance.data.datasets[0].data;
+                const idx = appState.quizScores.length; // Posisi ke-1 sampai 5
+                
+                if (idx < chartData.length) {
+                    chartData[idx] = score;
+                } else {
+                    // Jika kuis lebih dari 5, tambahkan dan geser grafik
+                    chartData.push(score);
+                    window.performanceChartInstance.data.labels.push(`Kuis ${idx}`);
+                }
+                window.performanceChartInstance.update();
+            }
+        }
+
+        function resetQuiz() {
+            document.getElementById('quiz-result').classList.add('hidden');
+            document.getElementById('quiz-setup').classList.remove('hidden');
+        }
+
+        const flashcardData = [
+            { front: "OSI Layer 3", back: "Network Layer - Bertanggung jawab untuk routing dan penentuan alamat logis (IP Address)." },
+            { front: "DHCP", back: "Dynamic Host Configuration Protocol - Memberikan IP address otomatis kepada client." },
+            { front: "VLAN", back: "Virtual Local Area Network - Memecah broadcast domain jaringan secara logis (tanpa merubah fisik)." },
+            { front: "Fiber Optic", back: "Kabel jaringan yang menggunakan cahaya. Terdiri dari inti (core), cladding, dan jaket pelindung." },
+            { front: "Ping", back: "Packet Internet Groper - Utilitas untuk memeriksa konektivitas jaringan menggunakan ICMP." }
+        ];
+        
+        let currentFcIndex = 0;
+
+        function loadFlashcard() {
+            const data = flashcardData[currentFcIndex];
+            const fcCard = document.querySelector('.flashcard');
+            
+            // Reset flip state before changing content
+            fcCard.classList.remove('flipped');
+            
+            // Small timeout to allow unflip animation before changing text
+            setTimeout(() => {
+                document.getElementById('fc-front-text').textContent = data.front;
+                document.getElementById('fc-back-text').textContent = data.back;
+                document.getElementById('fc-current').textContent = currentFcIndex + 1;
+                document.getElementById('fc-total').textContent = flashcardData.length;
+            }, 300);
+        }
+
+        function nextFlashcard() {
+            currentFcIndex = (currentFcIndex + 1) % flashcardData.length;
+            loadFlashcard();
+        }
+
+        function prevFlashcard() {
+            currentFcIndex = (currentFcIndex - 1 + flashcardData.length) % flashcardData.length;
+            loadFlashcard();
+        }
+        
+        // Initialize first flashcard on load
+        setTimeout(loadFlashcard, 500);
+
+    </script>
+</body>
+</html>
