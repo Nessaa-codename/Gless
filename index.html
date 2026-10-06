@@ -128,7 +128,7 @@
 </head>
 <body class="text-slate-200 antialiased h-screen flex overflow-hidden selection:bg-brand-500 selection:text-white">
 
-    <aside id="sidebar" class="bg-dark-surface w-64 flex-shrink-0 flex flex-col border-r border-dark-border transition-transform duration-300 absolute md:relative z-50 h-full transform -translate-x-full md:translate-x-0">
+    <aside id="sidebar" class="bg-dark-surface w-72 flex-shrink-0 flex flex-col border-r border-dark-border transition-transform duration-300 absolute md:relative z-50 h-full transform -translate-x-full md:translate-x-0">
         <div class="h-16 flex items-center px-6 border-b border-dark-border flex-shrink-0 justify-between">
             <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-500 to-cyan-400">NetEdu TJKT</span>
             <button id="close-sidebar" class="md:hidden text-slate-400 hover:text-white">
@@ -174,18 +174,40 @@
             </nav>
         </div>
         
-        <div class="p-4 border-t border-dark-border">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center font-bold text-white shadow-lg">
+        <div class="p-4 border-t border-dark-border bg-slate-900/30">
+            <div class="flex items-start space-x-3">
+                <div class="w-10 h-10 mt-1 rounded-full bg-brand-500 flex items-center justify-center font-bold text-white shadow-lg shrink-0">
                     5
                 </div>
-                <div>
+                <div class="w-full">
                     <p class="text-sm font-medium text-white">Kelas XI - TKJ3</p> 
-                    <p class="text-xs text-slate-400">Ahmad Mahfud</p>
-                    <p class="text-xs text-slate-400">Alif Hafizh Rofif</p>
-                    <p class="text-xs text-slate-400">Andi Ramadan Munir</p>
-                    <p class="text-xs text-slate-400">Favor Prince Potu</p>
-                    <p class="text-xs text-slate-400">Muhammad Reza Khoirian</p>
+                    <div class="mt-2 space-y-2">
+                        <!-- 1. Ahmad Mahfud -->
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs text-slate-300">1. Ahmad Mahfud</span>
+                            <span class="text-[10px] text-brand-400 font-medium bg-brand-900/40 px-2 py-0.5 rounded w-max">Prompt Engineer Text</span>
+                        </div>
+                        <!-- 2. Alif Hafizh Rofif -->
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs text-slate-300">2. Alif Hafizh Rofif</span>
+                            <span class="text-[10px] text-brand-400 font-medium bg-brand-900/40 px-2 py-0.5 rounded w-max">Prompt Engineer Visual</span>
+                        </div>
+                        <!-- 3. Andi Ramadan Munir -->
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs text-slate-300">3. Andi Ramadan Munir</span>
+                            <span class="text-[10px] text-brand-400 font-medium bg-brand-900/40 px-2 py-0.5 rounded w-max">Desaign</span>
+                        </div>
+                        <!-- 4. Favor Prince Potu -->
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs text-slate-300">4. Favor Prince Potu</span>
+                            <span class="text-[10px] text-brand-400 font-medium bg-brand-900/40 px-2 py-0.5 rounded w-max">QA</span>
+                        </div>
+                        <!-- 5. Muhammad Reza Khoirian -->
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs text-slate-300">5. Muhammad Reza Khoirian</span>
+                            <span class="text-[10px] text-brand-400 font-medium bg-brand-900/40 px-2 py-0.5 rounded w-max">Project Manager</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -198,7 +220,7 @@
                 <button id="open-sidebar" class="md:hidden mr-4 text-slate-400 hover:text-white">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
-                <img src="36b4f5df-6e2d-463f-ad84-6cdbe25ee3ee-removebg-preview.png"alt="Logo SMKN 6 Balikpapan" class="h-9 w-9 rounded-full mr-3 object-cover border-2 border-slate-600 hidden sm:block shadow-md">
+                <img src="36b4f5df-6e2d-463f-ad84-6cdbe25ee3ee-removebg-preview.png" alt="Logo SMKN 6 Balikpapan" class="h-9 w-9 rounded-full mr-3 object-cover border-2 border-slate-600 hidden sm:block shadow-md">
 
                 <div class="relative w-64 max-w-md hidden sm:block">
                     <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
@@ -220,7 +242,7 @@
             
             <div id="view-dashboard" class="view-section active h-full space-y-6">
                 <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Selamat Datang,  Pelajar</h1>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Selamat Datang, Pelajar</h1>
                     <p class="text-slate-400">Pantau perkembangan belajarmu di jurusan Teknik Jaringan Komputer dan Telekomunikasi.</p>
                 </div>
 
@@ -287,6 +309,23 @@
                                 <p class="text-sm">Belum ada kuis yang dikerjakan pada sesi ini.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl border-l-4 border-l-brand-500 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center gap-6 mt-4">
+                    <div class="absolute -right-10 -top-10 opacity-10 pointer-events-none">
+                        <i class="fas fa-code text-9xl text-white"></i>
+                    </div>
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-brand-900/50 border-4 border-brand-500/30 flex items-center justify-center shrink-0">
+                        <i class="fas fa-rocket text-3xl md:text-4xl text-brand-400"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <h2 class="text-xl font-bold text-white mb-3">Tentang Project (Buatan Anak TKJ)</h2>
+                        <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
+                            <strong class="text-brand-400">NetEdu</strong> adalah platform pembelajaran interaktif yang secara khusus dirancang dan dikembangkan oleh tim kolaboratif siswa jurusan Teknik Jaringan Komputer dan Telekomunikasi (TKJ). 
+                            <br><br>
+                            Produk website ini bertujuan untuk memfasilitasi pelajar dalam menguasai konsep dan topologi jaringan secara visual. Melalui integrasi Lab 3D Interaktif, akses pembelajaran luring, serta evaluasi kuis pintar, kami mendedikasikan platform ini untuk menciptakan ekosistem belajar IT yang modern, praktis, dan sangat relevan dengan kebutuhan industri TJKT masa kini.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -410,7 +449,7 @@
 
                 </div>
             </div>
-<!-- Kuis -->
+
             <div id="view-kuis" class="view-section h-full">
                 <div class="glass-panel max-w-3xl mx-auto rounded-2xl p-6 md:p-8">
                     <div id="quiz-setup">
@@ -665,7 +704,7 @@
                         searchInput.value = '';
                         searchResults.classList.add('hidden');
                         if (item.action) {
-                            item.action(); // Eksekusi fungsi pengalihan halaman
+                            item.action(); 
                             showToast(`Membuka: ${item.title}`, 'success');
                         } else {
                             showToast(`Membuka: ${item.title}`);
